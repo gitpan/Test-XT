@@ -1,0 +1,79 @@
+NAME
+    Test::XT - Generate best practice author tests
+
+SYNOPSIS
+      use Test::XT 'WriteXT';
+      
+  WriteXT(
+          'Test::Pod'            => 't/pod.t',
+          'Test::CPAN::Meta'     => 't/meta.t',
+          'Test::MinimumVersion' => 't/minimumversion.t',
+      );
+
+DESCRIPTION
+    A number of Test modules have been written over the years to support
+    authors. Typically, these modules have standard short test scripts
+    documented in them that you can cut and paste into your distribution.
+
+    Unfortunately almost all of these cut-and-paste test scripts are wrong.
+
+    Either the test script runs during install time, or it runs with an
+    out-of-date version of the test module, or the author adds the test
+    modules as an (unnecesary) dependency at install time, or for automated
+    testing.
+
+    Test::XT is a module intended for use in code generators, release
+    automation and other ancillary systems. It generates an appropriate test
+    script for various testing modules that runs in the appropriate mode for
+    each type of execution environment.
+
+    1. End User Install
+
+    At installation time, test scripts should never ever run, even if the
+    test modules are installed and available.
+
+    2. Automated Testing
+
+      # Enable automated testing
+      $ENV{AUTOMATED_TESTING} = 1
+
+    During automated testing we should run the tests, but only if the
+    testing module are already installed and at the current/latest version.
+
+    However, we should not install dependencies during automated testing,
+    because failing to install a testing dependency means less runs on your
+    code when the entire point of the author tests is to improve the
+    standard of testing, not reduce it.
+
+    3. Release/Author Testing
+
+      # Enable author tests
+      $ENV{RELEASE_TESTING} = 1;
+
+    All tests should run at release time by the author. Despite this, the
+    dependencies STILL should not be checked for in your Makefile.PL or
+    Build.PL, because you could end up accidentally having these extra
+    dependencies bleed through into your published META.yml.
+
+    This would cause inaccuracies in tools that track dependencies across
+    the entire repository via the META.yml files.
+
+SUPPORT
+    Bugs should be submitted via the CPAN bug tracker, located at
+
+    <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Test-XT>
+
+    For general comments, contact the author.
+
+AUTHOR
+    Adam Kennedy <adamk@cpan.org>
+
+COPYRIGHT
+    Copyright 2009 Adam Kennedy.
+
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
+
+    The full text of the license can be found in the LICENSE file included
+    with this module.
+

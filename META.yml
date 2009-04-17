@@ -1,0 +1,35 @@
+---
+abstract: 'Generate best practice author tests'
+author:
+  - 'Adam Kennedy <adamk@cpan.org>'
+build_requires:
+  ExtUtils::MakeMaker: 6.42
+  File::Remove: 0
+  File::Spec: 0.80
+  Perl::MinimumVersion: 1.20
+  Pod::Simple: 3.07
+  Test::CPAN::Meta: 0.12
+  Test::MinimumVersion: 0.008
+  Test::More: 0.42
+  Test::Pod: 1.26
+configure_requires:
+  ExtUtils::MakeMaker: 6.42
+distribution_type: module
+generated_by: 'Module::Install version 0.84'
+license: perl
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+module_name: Test::XT
+name: Test-XT
+no_index:
+  directory:
+    - inc
+    - t
+requires:
+  perl: 5.8.0
+resources:
+  ChangeLog: http://fisheye2.atlassian.com/changelog/cpan/trunk/Test-XT
+  license: http://dev.perl.org/licenses/
+  repository: http://svn.ali.as/cpan/trunk/Test-XT
+version: 0.01
