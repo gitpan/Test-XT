@@ -8,6 +8,7 @@ SYNOPSIS
           'Test::Pod'            => 't/pod.t',
           'Test::CPAN::Meta'     => 't/meta.t',
           'Test::MinimumVersion' => 't/minimumversion.t',
+          'Test::Perl::Critic'   => 't/critic.t',
       );
 
 DESCRIPTION
