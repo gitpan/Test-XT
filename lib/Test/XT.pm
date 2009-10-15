@@ -8,8 +8,9 @@ Test::XT - Generate best practice author tests
 
 =head1 SYNOPSIS
 
-  use Test::XT 'WriteXT';
+  use Test::XT qw(WriteXT);
   
+  # Write some specific tests:
   WriteXT(
       'Test::Pod'            => 't/pod.t',
       'Test::CPAN::Meta'     => 't/meta.t',
@@ -75,7 +76,7 @@ use Exporter ();
 
 use vars qw{$VERSION @ISA @EXPORT_OK};
 BEGIN {
-	$VERSION   = '0.02';
+	$VERSION   = '0.03_01';
 	@ISA       = 'Exporter';
 	@EXPORT_OK = qw{
 		WriteTest
@@ -83,45 +84,119 @@ BEGIN {
 	};
 }
 
+=pod
+
+=head1 SUPPORTED TEST MODULES
+
+=over
+
+=item * L<Test::Pod>
+
+=item * L<Test::CPAN::Meta>
+
+=item * L<Test::HasVersion>
+
+=item * L<Test::MinimumVersion>
+
+=item * L<Test::Perl::Critic>
+
+=item * L<Test::DistManifest>
+
+=item * L<Test::CheckChanges>
+
+=item * L<Test::Fixme>
+
+=item * L<Test::Pod::Coverage>
+
+=back
+
+=cut
+
 # Data for standard tests
 my %STANDARD = (
 	'Test::Pod' => {
 		test    => 'all_pod_files_ok',
+		release => 0, # is this a RELEASE test only?
 		comment => 'Test that the syntax of our POD documentation is valid',
 		modules => {
 			'Pod::Simple' => '3.07',
 			'Test::Pod'   => '1.26',
 		},
+		default => 'pod.t',
 	},
 	'Test::CPAN::Meta' => {
 		test    => 'meta_yaml_ok',
+		release => 0,
 		comment => 'Test that our META.yml file matches the specification',
 		modules => {
 			'Test::CPAN::Meta' => '0.12',
 		},
+		default => 'meta.t',
 	},
 	'Test::HasVersion' => {
 		test    => 'all_pm_version_ok',
+		release => 0,
 		comment => 'Test that all modules have a version number',
 		modules => {
 			'Test::HasVersion' => '0.012',
 		},
+		default => 'hasversion.t',
 	},
 	'Test::MinimumVersion' => {
 		test    => 'all_minimum_version_from_metayml_ok',
+		release => 0,
 		comment => 'Test that our declared minimum Perl version matches our syntax',
 		modules => {
 			'Perl::MinimumVersion' => '1.20',
 			'Test::MinimumVersion' => '0.008',
 		},
+		default => 'minimumversion.t',
 	},
 	'Test::Perl::Critic' => {
 		test    => 'all_critic_ok',
+		release => 1,
 		comment => 'Test that the module passes perlcritic',
 		modules => {
 			'Perl::Critic'       => '1.098',
 			'Test::Perl::Critic' => '1.01',
 		},
+		default => 'critic.t',
+	},
+	'Test::DistManifest' => {
+		test    => 'manifest_ok',
+		release => 1,
+		comment => 'Test that the module MANIFEST is up-to-date',
+		modules => {
+			'Test::DistManifest' => '1.003',
+		},
+		default => 'distmanifest.t',
+	},
+	'Test::Pod::Coverage' => {
+		test    => 'pod_coverage_ok',
+		release => 1,
+		comment => 'Ensure pod coverage in your distribution',
+		modules => {
+			'Test::Pod::Coverage' => '1.08',
+		},
+		default => 'coverage.t',
+	},
+	'Test::CheckChanges' => {
+		test    => 'ok_changes',
+		release => 0,
+		comment => 'Test that Changes has an entry for current version',
+		modules => {
+			'Test::CheckChanges' => '0.08',
+		},
+		default => 'changes.t',
+	},
+	'Test::Fixme' => {
+		test    => 'run_tests',
+		release => 0,
+		comment => 'Check source files for FIXME statements',
+		modules => {
+			'Test::Fixme' => '0.04',
+		},
+		default => 'fixme.t',
 	},
 );
 
@@ -132,10 +207,73 @@ my %STANDARD = (
 #####################################################################
 # Exportable Functions
 
+=pod
+
+=head1 EXPORTABLE FUNCTIONS
+
+=head2 WriteTest( $file, %test_data )
+
+This function provides a simple way to write a single test to a file,
+following the usual template. The test data is a hash (Note: it's NOT a
+hash reference).
+
+Example code:
+
+  WriteTest(
+    't/somefile.t',
+    test    => 'ok_changes',
+    release => 0,
+    comment => 'Test that Changes has an entry for current version',
+    modules => {
+      'Test::CheckChanges' => '0.08',
+    },
+  );
+
+This writes a test to B<t/somefile.t> that loads L<Test::CheckChanges> if
+available, calling the C<ok_changes()> function if it is. A few knobs
+control how this works:
+
+=over
+
+=item * B<test> is the name of the subroutine to run, which has to be
+exported from the test module.
+
+=item * B<release> determines whether this is a release-only test, which
+means it is not executed during automated testing, even if the needed
+prerequisites are available.
+
+=item * B<comment> is the default comment which briefly describes the test.
+
+=item * B<modules> is a hash reference containing pairs of modules and
+their required versions. If no particular version is required, use 0.
+
+=back
+
+=cut
+
 sub WriteTest {
 	my $file = shift;
 	Test::XT->new( @_ )->write( $file );
 }
+
+=pod
+
+=head2 WriteXT( %tests )
+
+This provides a convenient way to write multiple test files using the default
+profile settings (such as which modules to require, what subroutine to call,
+whether this is a release-only test).
+
+Example code:
+
+  WriteXT(
+      'Test::Pod'            => 't/pod.t',
+      'Test::CPAN::Meta'     => 't/meta.t',
+      'Test::MinimumVersion' => 't/minimumversion.t',
+      'Test::Perl::Critic'   => 't/critic.t',
+  );
+
+=cut
 
 sub WriteXT {
 	while ( @_ ) {
@@ -149,10 +287,6 @@ sub WriteXT {
 		)->write( $file );
 	}
 }
-
-
-
-
 
 #####################################################################
 # Object Form
@@ -188,7 +322,7 @@ sub write_string {
 	my $modules = join "\n", map {
 		"\t'$_ $self->{modules}->{$_}',"
 	} sort keys %{$self->{modules}};
-	return <<"END_TEST";
+	my $o       = << "END_HEADER";
 #!/usr/bin/perl
 $comment
 use strict;
@@ -203,51 +337,89 @@ $modules
 
 # Don't run tests during end-user installs
 use Test::More;
-unless ( \$ENV{AUTOMATED_TESTING} or \$ENV{RELEASE_TESTING} ) {
-	plan( skip_all => "Author tests not required for installation" );
-}
+END_HEADER
 
+	# See if this is RELEASE_TESTING only
+	$o .= "plan( skip_all => 'Author tests not required for installation' )\n";
+	$o .= q|	unless ( $ENV{RELEASE_TESTING}|;
+	unless ($self->{release}) {
+		$o .= ' or $ENV{AUTOMATED_TESTING}';
+	}
+	$o .= " );\n\n";
+
+	$o .= << 'END_MODULES';
 # Load the testing modules
-foreach my \$MODULE ( \@MODULES ) {
-	eval "use \$MODULE";
-	if ( \$@ ) {
-		\$ENV{RELEASE_TESTING}
-		? die( "Failed to load required release-testing module \$MODULE" )
-		: plan( skip_all => "\$MODULE not available for testing" );
+foreach my $MODULE ( @MODULES ) {
+	eval "use $MODULE";
+	if ( $@ ) {
+		$ENV{RELEASE_TESTING}
+		? die( "Failed to load required release-testing module $MODULE" )
+		: plan( skip_all => "$MODULE not available for testing" );
 	}
 }
 
-$self->{test}();
+END_MODULES
 
-1;
-END_TEST
-
+	$o .= $self->{test} . "();\n\n";
+	$o .= "1;\n";
+	return $o;
 }
 
 1;
 
 =pod
 
+=head1 LIMITATIONS
+
+This module is still missing support for lots of other author tests.
+
 =head1 SUPPORT
 
-Bugs should be submitted via the CPAN bug tracker, located at
+This module is stored in an Open Repository at the following address:
+
+L<http://svn.ali.as/cpan/trunk/Test-XT>
+
+Write access to the repository is made available automatically to any
+published CPAN author, and to most other volunteers on request.
+
+If you are able to submit your bug report in the form of new (failing) unit
+tests, or can apply your fix directly instead of submitting a patch, you are
+B<strongly> encouraged to do so. The author currently maintains over 100
+modules and it may take some time to deal with non-critical bug reports or
+patches.
+
+This will guarantee that your issue will be addressed in the next release of
+the module.
+
+If you cannot provide a direct test or fix, or don't have time to do so, then
+regular bug reports are still accepted and appreciated via the CPAN bug
+tracker.
 
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Test-XT>
 
-For general comments, contact the author.
+For other issues, for commercial enhancement and support, or to have your
+write access enabled for the repository, contact the author at the email
+address above.
 
-=head1 AUTHOR
+=head1 AUTHORS
 
 Adam Kennedy E<lt>adamk@cpan.orgE<gt>
 
+Jonathan Yu E<lt>frequency@cpan.orgE<gt>
+
+=head1 SEE ALSO
+
+L<http://use.perl.org/~Alias/journal/38822>, which explains why this style
+of testing is beneficial to you and CPAN-at-large.
+
 =head1 COPYRIGHT
 
-Copyright 2009 Adam Kennedy.
+Copyright 2009 Adam Kennedy
 
-This program is free software; you can redistribute
-it and/or modify it under the same terms as Perl itself.
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
 
-The full text of the license can be found in the
-LICENSE file included with this module.
+The full text of the license can be found in the LICENSE file included
+with this module.
 
 =cut

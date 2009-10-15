@@ -2,9 +2,10 @@ NAME
     Test::XT - Generate best practice author tests
 
 SYNOPSIS
-      use Test::XT 'WriteXT';
+      use Test::XT qw(WriteXT);
       
-  WriteXT(
+  # Write some specific tests:
+      WriteXT(
           'Test::Pod'            => 't/pod.t',
           'Test::CPAN::Meta'     => 't/meta.t',
           'Test::MinimumVersion' => 't/minimumversion.t',
@@ -59,18 +60,114 @@ DESCRIPTION
     This would cause inaccuracies in tools that track dependencies across
     the entire repository via the META.yml files.
 
+SUPPORTED TEST MODULES
+    *   Test::Pod
+
+    *   Test::CPAN::Meta
+
+    *   Test::HasVersion
+
+    *   Test::MinimumVersion
+
+    *   Test::Perl::Critic
+
+    *   Test::DistManifest
+
+    *   Test::CheckChanges
+
+    *   Test::Fixme
+
+    *   Test::Pod::Coverage
+
+EXPORTABLE FUNCTIONS
+  WriteTest( $file, %test_data )
+    This function provides a simple way to write a single test to a file,
+    following the usual template. The test data is a hash (Note: it's NOT a
+    hash reference).
+
+    Example code:
+
+      WriteTest(
+        't/somefile.t',
+        test    => 'ok_changes',
+        release => 0,
+        comment => 'Test that Changes has an entry for current version',
+        modules => {
+          'Test::CheckChanges' => '0.08',
+        },
+      );
+
+    This writes a test to t/somefile.t that loads Test::CheckChanges if
+    available, calling the "ok_changes()" function if it is. A few knobs
+    control how this works:
+
+    *   test is the name of the subroutine to run, which has to be exported
+        from the test module.
+
+    *   release determines whether this is a release-only test, which means
+        it is not executed during automated testing, even if the needed
+        prerequisites are available.
+
+    *   comment is the default comment which briefly describes the test.
+
+    *   modules is a hash reference containing pairs of modules and their
+        required versions. If no particular version is required, use 0.
+
+  WriteXT( %tests )
+    This provides a convenient way to write multiple test files using the
+    default profile settings (such as which modules to require, what
+    subroutine to call, whether this is a release-only test).
+
+    Example code:
+
+      WriteXT(
+          'Test::Pod'            => 't/pod.t',
+          'Test::CPAN::Meta'     => 't/meta.t',
+          'Test::MinimumVersion' => 't/minimumversion.t',
+          'Test::Perl::Critic'   => 't/critic.t',
+      );
+
+LIMITATIONS
+    This module is still missing support for lots of other author tests.
+
 SUPPORT
-    Bugs should be submitted via the CPAN bug tracker, located at
+    This module is stored in an Open Repository at the following address:
+
+    <http://svn.ali.as/cpan/trunk/Test-XT>
+
+    Write access to the repository is made available automatically to any
+    published CPAN author, and to most other volunteers on request.
+
+    If you are able to submit your bug report in the form of new (failing)
+    unit tests, or can apply your fix directly instead of submitting a
+    patch, you are strongly encouraged to do so. The author currently
+    maintains over 100 modules and it may take some time to deal with
+    non-critical bug reports or patches.
+
+    This will guarantee that your issue will be addressed in the next
+    release of the module.
+
+    If you cannot provide a direct test or fix, or don't have time to do so,
+    then regular bug reports are still accepted and appreciated via the CPAN
+    bug tracker.
 
     <http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Test-XT>
 
-    For general comments, contact the author.
+    For other issues, for commercial enhancement and support, or to have
+    your write access enabled for the repository, contact the author at the
+    email address above.
 
-AUTHOR
+AUTHORS
     Adam Kennedy <adamk@cpan.org>
 
+    Jonathan Yu <frequency@cpan.org>
+
+SEE ALSO
+    <http://use.perl.org/~Alias/journal/38822>, which explains why this
+    style of testing is beneficial to you and CPAN-at-large.
+
 COPYRIGHT
-    Copyright 2009 Adam Kennedy.
+    Copyright 2009 Adam Kennedy
 
     This program is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.
