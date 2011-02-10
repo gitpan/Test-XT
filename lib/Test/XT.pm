@@ -4,18 +4,34 @@ package Test::XT;
 
 =head1 NAME
 
-Test::XT - Generate best practice author tests
+Test::XT - Generate best practice release-only tests
 
 =head1 SYNOPSIS
 
-  use Test::XT qw(WriteXT);
+  use Test::XT 'WriteXT';
   
   # Write some specific tests:
   WriteXT(
-      'Test::Pod'            => 't/pod.t',
-      'Test::CPAN::Meta'     => 't/meta.t',
-      'Test::MinimumVersion' => 't/minimumversion.t',
-      'Test::Perl::Critic'   => 't/critic.t',
+      # Generally safe and recommended for most distributions
+      'Test::Pod'            => 'xt/pod.t',
+      'Test::CPAN::Meta'     => 'xt/meta.t',
+      'Test::MinimumVersion' => 'xt/minimumversion.t',
+      'Test::HasVersion'     => 'xt/hasversion.t',
+      
+      # Controversial history and methodology, does not install reliably.
+      # Forced use leads to cargo cult of worse-than-nothing empty method stubs.
+      'Test::Pod::Coverage'  => 'xt/podcoverage.t',
+      
+      # May become unreliable over time as PPI and Perl::Critic change.
+      # Safe when BOTH distribution and policy file are active and maintained.
+      'Test::Perl::Critic'   => 'xt/critic.t',
+      
+      # Should only be used if you hand-maintain your MANIFEST file.
+      # Can be presumptive about MANIFEST.SKIP in some situations.
+      'Test::DistManifest'   => 'xt/distmanifest.t',
+      
+      # Does not install reliably, does not install AT ALL on Windows.
+      'Test::CheckChanges'   => 'xt/changes.t',
   );
 
 =head1 DESCRIPTION
@@ -59,9 +75,9 @@ the standard of testing, not reduce it.
   # Enable author tests
   $ENV{RELEASE_TESTING} = 1;
 
-All tests should run at release time by the author. Despite this, the
-dependencies STILL should not be checked for in your F<Makefile.PL> or
-F<Build.PL>, because you could end up accidentally having these extra
+All tests should be run at release time by the author. Despite this, the
+dependencies should NEVER be added to your F<Makefile.PL> or F<Build.PL>,
+because it is far too easy to accidentally have these extra
 dependencies bleed through into your published META.yml.
 
 This would cause inaccuracies in tools that track dependencies
@@ -73,10 +89,12 @@ use 5.008;
 use strict;
 use warnings;
 use Exporter ();
+use Carp     ();
 
 use vars qw{$VERSION @ISA @EXPORT_OK};
 BEGIN {
-	$VERSION   = '0.03_01';
+	$VERSION   = '0.03_02';
+	$VERSION   = eval $VERSION; # For dev release only
 	@ISA       = 'Exporter';
 	@EXPORT_OK = qw{
 		WriteTest
@@ -104,16 +122,22 @@ BEGIN {
 
 =item * L<Test::CheckChanges>
 
-=item * L<Test::Fixme>
-
 =item * L<Test::Pod::Coverage>
 
 =back
 
+To programmatically extract a list of the relevant module files, or to get
+informtion about supported modules, you may directly access the underlying
+hash:
+
+  %Test::XT::STANDARD
+
+Please note that this interface is experimental and subject to change.
+
 =cut
 
 # Data for standard tests
-my %STANDARD = (
+our %STANDARD = (
 	'Test::Pod' => {
 		test    => 'all_pod_files_ok',
 		release => 0, # is this a RELEASE test only?
@@ -172,13 +196,13 @@ my %STANDARD = (
 		default => 'distmanifest.t',
 	},
 	'Test::Pod::Coverage' => {
-		test    => 'pod_coverage_ok',
+		test    => 'all_pod_coverage_ok',
 		release => 1,
 		comment => 'Ensure pod coverage in your distribution',
 		modules => {
 			'Test::Pod::Coverage' => '1.08',
 		},
-		default => 'coverage.t',
+		default => 'podcoverage.t',
 	},
 	'Test::CheckChanges' => {
 		test    => 'ok_changes',
@@ -188,15 +212,6 @@ my %STANDARD = (
 			'Test::CheckChanges' => '0.08',
 		},
 		default => 'changes.t',
-	},
-	'Test::Fixme' => {
-		test    => 'run_tests',
-		release => 0,
-		comment => 'Check source files for FIXME statements',
-		modules => {
-			'Test::Fixme' => '0.04',
-		},
-		default => 'fixme.t',
 	},
 );
 
@@ -209,18 +224,12 @@ my %STANDARD = (
 
 =pod
 
-=head1 EXPORTABLE FUNCTIONS
+=head1 FUNCTIONS
 
-=head2 WriteTest( $file, %test_data )
-
-This function provides a simple way to write a single test to a file,
-following the usual template. The test data is a hash (Note: it's NOT a
-hash reference).
-
-Example code:
+=head2 WriteTest
 
   WriteTest(
-    't/somefile.t',
+    'xt/something.t',
     test    => 'ok_changes',
     release => 0,
     comment => 'Test that Changes has an entry for current version',
@@ -229,7 +238,11 @@ Example code:
     },
   );
 
-This writes a test to B<t/somefile.t> that loads L<Test::CheckChanges> if
+This function provides a simple way to write a single test to a file,
+following the usual template. The test data is a hash (Note: it's NOT a
+hash reference).
+
+The example above writes a test to B<xt/somefile.t> that loads L<Test::CheckChanges> if
 available, calling the C<ok_changes()> function if it is. A few knobs
 control how this works:
 
@@ -258,20 +271,20 @@ sub WriteTest {
 
 =pod
 
-=head2 WriteXT( %tests )
+=head2 WriteXT
+
+  WriteXT(
+      'Test::Pod'            => 'xt/pod.t',
+      'Test::CPAN::Meta'     => 'xt/meta.t',
+      'Test::MinimumVersion' => 'xt/minimumversion.t',
+      'Test::Perl::Critic'   => 'xt/critic.t',
+  );
 
 This provides a convenient way to write multiple test files using the default
 profile settings (such as which modules to require, what subroutine to call,
-whether this is a release-only test).
+whether this is a release-only test, and so on).
 
 Example code:
-
-  WriteXT(
-      'Test::Pod'            => 't/pod.t',
-      'Test::CPAN::Meta'     => 't/meta.t',
-      'Test::MinimumVersion' => 't/minimumversion.t',
-      'Test::Perl::Critic'   => 't/critic.t',
-  );
 
 =cut
 
@@ -279,17 +292,49 @@ sub WriteXT {
 	while ( @_ ) {
 		my $module = shift;
 		my $file   = shift;
+
 		unless ( $STANDARD{$module} ) {
-			die "Unknown standard test script $module";
+			Carp::croak('Unknown standard test script ' . $module);
 		}
+
 		Test::XT->new(
 			%{$STANDARD{$module}}
 		)->write( $file );
 	}
 }
 
+
+
+
+
 #####################################################################
 # Object Form
+
+=pod
+
+=head1 OBJECT ORIENTED INTERFACE
+
+=head2 new
+
+  my $test = Test::XT->new(
+    test    => 'all_pod_files_ok',
+    release => 0, # is this a RELEASE test only?
+    comment => 'Test that the syntax of our POD documentation is valid',
+    modules => {
+      'Pod::Simple' => '3.07',
+      'Test::Pod'   => '1.26',
+    },
+    default => 'pod.t',
+  );
+
+This produces a new object that stores information about a given test module.
+It can then be transformed into output suitable for use in a stream (via
+C<write_string>, which returns the test script as a string) or for writing
+directly to a file (using C<write>).
+
+For details on the available options, see B<WriteTest>
+
+=cut
 
 sub new {
 	my $class = shift;
@@ -297,24 +342,75 @@ sub new {
 	return $self;
 }
 
+=head2 module
+
+  $test->module( 'Foo::Bar' => '1.23' );
+
+Add a module dependency for the test script.
+
+=cut
+
 sub module {
-	$_[0]->{modules}->{$_[1]}->{$_[2]};
+	$_[0]->{modules}->{$_[1]} = $_[2];
 }
+
+=head2 test
+
+  $test->test( $command );
+
+Change the name of the subroutine which is called to actually run the test.
+
+Code example:
+
+  $test->test('all_pod_coverage_ok');
+
+=cut
 
 sub test {
 	$_[0]->{test} = $_[1];
 }
 
+=head2 write
+
+  $test->write( $path )
+
+This method writes the test file to the provided path.
+
+Note that this method throws an exception upon failure to open the file.
+
+Code example:
+
+  eval {
+    $test->write('t/file.t');
+  };
+  print "Failure writing file" if $@;
+
+=cut
+
 sub write {
 	my $self   = shift;
 
 	# Write the file
-	open( FILE, '>', $_[0 ] ) or die "open: $!";
+	open( FILE, '>', $_[0 ] ) or Carp::croak("Failed to open file: $!");
 	print FILE $self->write_string;
 	close FILE;
 
 	return 1;
 }
+
+=head2 write_string
+
+  $test->write_string()
+
+This method writes the test script as a chunk of text and returns it. Note
+that this is the exact script written out to file via C<write>.
+
+Code example:
+
+  print "Test script:\n";
+  print $test->write_string;
+
+=cut
 
 sub write_string {
 	my $self    = shift;
@@ -342,7 +438,7 @@ END_HEADER
 	# See if this is RELEASE_TESTING only
 	$o .= "plan( skip_all => 'Author tests not required for installation' )\n";
 	$o .= q|	unless ( $ENV{RELEASE_TESTING}|;
-	unless ($self->{release}) {
+	unless ( $self->{release} ) {
 		$o .= ' or $ENV{AUTOMATED_TESTING}';
 	}
 	$o .= " );\n\n";
@@ -405,16 +501,16 @@ address above.
 
 Adam Kennedy E<lt>adamk@cpan.orgE<gt>
 
-Jonathan Yu E<lt>frequency@cpan.orgE<gt>
+Jonathan Yu E<lt>jawnsy@cpan.orgE<gt>
 
 =head1 SEE ALSO
 
 L<http://use.perl.org/~Alias/journal/38822>, which explains why this style
-of testing is beneficial to you and CPAN-at-large.
+of testing is beneficial to you and the CPAN-at-large.
 
 =head1 COPYRIGHT
 
-Copyright 2009 Adam Kennedy
+Copyright 2009-2011 Adam Kennedy
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

@@ -11,11 +11,11 @@ use File::Remove ();
 use Test::XT     'WriteXT';
 
 # Write the generated file
-my $file = File::Spec->catfile('t', '14_minimumversion._t');
+my $file = File::Spec->catfile('t', '06_changes._t');
 File::Remove::clear($file);
-WriteXT( 'Test::MinimumVersion' => $file );
+WriteXT( 'Test::CheckChanges' => $file );
 
 # Execute the generated file
-$ENV{AUTOMATED_TESTING} = 1;
+$ENV{AUTOMATED_TESTING} = 0;
 $ENV{RELEASE_TESTING}   = 0;
 require $file;

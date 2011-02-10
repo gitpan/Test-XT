@@ -1,15 +1,31 @@
 NAME
-    Test::XT - Generate best practice author tests
+    Test::XT - Generate best practice release-only tests
 
 SYNOPSIS
-      use Test::XT qw(WriteXT);
+      use Test::XT 'WriteXT';
       
   # Write some specific tests:
       WriteXT(
-          'Test::Pod'            => 't/pod.t',
-          'Test::CPAN::Meta'     => 't/meta.t',
-          'Test::MinimumVersion' => 't/minimumversion.t',
-          'Test::Perl::Critic'   => 't/critic.t',
+          # Generally safe and recommended for most distributions
+          'Test::Pod'            => 'xt/pod.t',
+          'Test::CPAN::Meta'     => 'xt/meta.t',
+          'Test::MinimumVersion' => 'xt/minimumversion.t',
+          'Test::HasVersion'     => 'xt/hasversion.t',
+          
+      # Controversial history and methodology, does not install reliably.
+          # Forced use leads to cargo cult of worse-than-nothing empty method stubs.
+          'Test::Pod::Coverage'  => 'xt/podcoverage.t',
+          
+      # May become unreliable over time as PPI and Perl::Critic change.
+          # Safe when BOTH distribution and policy file are active and maintained.
+          'Test::Perl::Critic'   => 'xt/critic.t',
+          
+      # Should only be used if you hand-maintain your MANIFEST file.
+          # Can be presumptive about MANIFEST.SKIP in some situations.
+          'Test::DistManifest'   => 'xt/distmanifest.t',
+          
+      # Does not install reliably, does not install AT ALL on Windows.
+          'Test::CheckChanges'   => 'xt/changes.t',
       );
 
 DESCRIPTION
@@ -52,10 +68,10 @@ DESCRIPTION
       # Enable author tests
       $ENV{RELEASE_TESTING} = 1;
 
-    All tests should run at release time by the author. Despite this, the
-    dependencies STILL should not be checked for in your Makefile.PL or
-    Build.PL, because you could end up accidentally having these extra
-    dependencies bleed through into your published META.yml.
+    All tests should be run at release time by the author. Despite this, the
+    dependencies should NEVER be added to your Makefile.PL or Build.PL,
+    because it is far too easy to accidentally have these extra dependencies
+    bleed through into your published META.yml.
 
     This would cause inaccuracies in tools that track dependencies across
     the entire repository via the META.yml files.
@@ -75,20 +91,20 @@ SUPPORTED TEST MODULES
 
     *   Test::CheckChanges
 
-    *   Test::Fixme
-
     *   Test::Pod::Coverage
 
-EXPORTABLE FUNCTIONS
-  WriteTest( $file, %test_data )
-    This function provides a simple way to write a single test to a file,
-    following the usual template. The test data is a hash (Note: it's NOT a
-    hash reference).
+    To programmatically extract a list of the relevant module files, or to
+    get informtion about supported modules, you may directly access the
+    underlying hash:
 
-    Example code:
+      %Test::XT::STANDARD
 
+    Please note that this interface is experimental and subject to change.
+
+FUNCTIONS
+  WriteTest
       WriteTest(
-        't/somefile.t',
+        'xt/something.t',
         test    => 'ok_changes',
         release => 0,
         comment => 'Test that Changes has an entry for current version',
@@ -97,9 +113,13 @@ EXPORTABLE FUNCTIONS
         },
       );
 
-    This writes a test to t/somefile.t that loads Test::CheckChanges if
-    available, calling the "ok_changes()" function if it is. A few knobs
-    control how this works:
+    This function provides a simple way to write a single test to a file,
+    following the usual template. The test data is a hash (Note: it's NOT a
+    hash reference).
+
+    The example above writes a test to xt/somefile.t that loads
+    Test::CheckChanges if available, calling the "ok_changes()" function if
+    it is. A few knobs control how this works:
 
     *   test is the name of the subroutine to run, which has to be exported
         from the test module.
@@ -113,19 +133,79 @@ EXPORTABLE FUNCTIONS
     *   modules is a hash reference containing pairs of modules and their
         required versions. If no particular version is required, use 0.
 
-  WriteXT( %tests )
+  WriteXT
+      WriteXT(
+          'Test::Pod'            => 'xt/pod.t',
+          'Test::CPAN::Meta'     => 'xt/meta.t',
+          'Test::MinimumVersion' => 'xt/minimumversion.t',
+          'Test::Perl::Critic'   => 'xt/critic.t',
+      );
+
     This provides a convenient way to write multiple test files using the
     default profile settings (such as which modules to require, what
-    subroutine to call, whether this is a release-only test).
+    subroutine to call, whether this is a release-only test, and so on).
 
     Example code:
 
-      WriteXT(
-          'Test::Pod'            => 't/pod.t',
-          'Test::CPAN::Meta'     => 't/meta.t',
-          'Test::MinimumVersion' => 't/minimumversion.t',
-          'Test::Perl::Critic'   => 't/critic.t',
+OBJECT ORIENTED INTERFACE
+  new
+      my $test = Test::XT->new(
+        test    => 'all_pod_files_ok',
+        release => 0, # is this a RELEASE test only?
+        comment => 'Test that the syntax of our POD documentation is valid',
+        modules => {
+          'Pod::Simple' => '3.07',
+          'Test::Pod'   => '1.26',
+        },
+        default => 'pod.t',
       );
+
+    This produces a new object that stores information about a given test
+    module. It can then be transformed into output suitable for use in a
+    stream (via "write_string", which returns the test script as a string)
+    or for writing directly to a file (using "write").
+
+    For details on the available options, see WriteTest
+
+  module
+      $test->module( 'Foo::Bar' => '1.23' );
+
+    Add a module dependency for the test script.
+
+  test
+      $test->test( $command );
+
+    Change the name of the subroutine which is called to actually run the
+    test.
+
+    Code example:
+
+      $test->test('all_pod_coverage_ok');
+
+  write
+      $test->write( $path )
+
+    This method writes the test file to the provided path.
+
+    Note that this method throws an exception upon failure to open the file.
+
+    Code example:
+
+      eval {
+        $test->write('t/file.t');
+      };
+      print "Failure writing file" if $@;
+
+  write_string
+      $test->write_string()
+
+    This method writes the test script as a chunk of text and returns it.
+    Note that this is the exact script written out to file via "write".
+
+    Code example:
+
+      print "Test script:\n";
+      print $test->write_string;
 
 LIMITATIONS
     This module is still missing support for lots of other author tests.
@@ -160,14 +240,14 @@ SUPPORT
 AUTHORS
     Adam Kennedy <adamk@cpan.org>
 
-    Jonathan Yu <frequency@cpan.org>
+    Jonathan Yu <jawnsy@cpan.org>
 
 SEE ALSO
     <http://use.perl.org/~Alias/journal/38822>, which explains why this
-    style of testing is beneficial to you and CPAN-at-large.
+    style of testing is beneficial to you and the CPAN-at-large.
 
 COPYRIGHT
-    Copyright 2009 Adam Kennedy
+    Copyright 2009-2011 Adam Kennedy
 
     This program is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.
